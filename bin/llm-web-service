@@ -1,0 +1,75 @@
+#!/usr/bin/env perl6
+
+use Cro::HTTP::Router;
+use Cro::HTTP::Server;
+use JSON::Fast;
+use URI::Encode;
+
+use LLM::Functions;
+use ML::FindTextualAnswer;
+
+my %*SUB-MAIN-OPTS = :named-anywhere;
+
+# Example:
+# http://localhost:10000/qas?text='Today is Wednesday and it is 35C hot!'&questions='What day? How hot?'
+
+sub MAIN(
+    Str :$host = 'localhost',  #= Host name
+    Str :$port = '10000',      #= Port
+) {
+
+    my $application = route {
+        get -> 'is_ready', {
+            content 'application/json', to-json({ :is-ready });
+        }
+
+        get -> 'setup',  {
+
+            my $response = 'Setup is successfull.';
+
+            content 'application/json', to-json({ 'import' => $response });
+        }
+
+        # DSL translation by grammars
+        get -> 'qas',
+               Str :$text!,
+               Str :$questions! {
+
+            ## Remove wrapper quotes
+            my $cleanText = uri_decode($text);
+            if $cleanText ~~ / ^ ['"' | '\''] .* ['"' | '\''] $ / {
+                $cleanText = $cleanText.substr(1, *- 1)
+            }
+
+            my $cleanQuestions = uri_decode($questions);
+            if $cleanQuestions ~~ / ^ ['"' | '\''] .* ['"' | '\''] $ / {
+                $cleanQuestions = $cleanQuestions.substr(1, *- 1)
+            }
+
+            # Questions
+            my @questions = $cleanQuestions.split('?', :skip-empty);
+            @questions .= map({ $_.trim ~ '?' });
+            note @questions;
+
+            # Find answers
+            my $response = find-textual-answer($cleanText, @questions, :pairs);
+
+            # Result
+            note "Response: ", $response;
+            content 'application/json', to-json($response);
+        }
+    }
+
+    # The Cro service
+    my Cro::Service $service = Cro::HTTP::Server.new(:$host, port => $port.Int, :$application);
+
+    $service.start;
+
+    note 'Started the Cro service.';
+
+    react whenever signal(SIGINT) {
+        $service.stop;
+        exit;
+    }
+
+}
