@@ -3,12 +3,12 @@
 # This script expected the following arguments
 # 1. Github Personal Access Token
 
-#PAT_GIT="$1"
+PAT_GIT="$1"
 
-#if [ $# -lt 1 ]; then
-#    echo "This script requires at least 1 argument (PAT_GIT), but none were passed."
-#    exit 1
-#fi
+if [ $# -lt 1 ]; then
+    echo "This script requires at least 1 argument (PAT_GIT), but none were passed."
+    exit 1
+fi
 
 total_start_time=$(date +%s.%2N)
 
