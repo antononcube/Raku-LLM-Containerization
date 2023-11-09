@@ -1,0 +1,27 @@
+{
+  "name": "LLM::Containerization",
+  "description": "Docker containers, Cro Web API, and CLI scripts packaging LLM functionalities.",
+  "version": "0.1.0",
+  "perl": "6.d",
+  "authors": [
+    "Anton Antonov"
+  ],
+  "auth": "zef:antononcube",
+  "depends": [
+    "Cro::HTTP",
+    "Cro::WebSocket",
+    "LLM::Functions",
+    "LLM::Prompts",
+    "ML::FindTextualAnswer"
+  ],
+  "build-depends": [],
+  "test-depends": [
+    "Cro::HTTP::Test"
+  ],
+  "provides": {
+    "LLM::Containerization::Routes": "lib/LLM/Containerization/Routes.rakumod"
+  },
+  "resources": [],
+  "license": "Artistic-2.0",
+  "source-url": "https://github.com/antononcube/Raku-LLM-Containerization.git"
+}
