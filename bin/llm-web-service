@@ -1,9 +1,8 @@
 #!/usr/bin/env perl6
 
-use Cro::HTTP::Router;
+use Cro::HTTP::Log::File;
 use Cro::HTTP::Server;
-use JSON::Fast;
-use URI::Encode;
+use LLM::Containerization::Routes;
 
 use LLM::Functions;
 use ML::FindTextualAnswer;
@@ -14,86 +13,24 @@ my %*SUB-MAIN-OPTS = :named-anywhere;
 # http://localhost:10000/qas?text='Today is Wednesday and it is 35C hot!'&questions='What day? How hot?'
 
 sub MAIN(
-    Str :$host = 'localhost',  #= Host name
-    Str :$port = '10000',      #= Port
-) {
+        Str :$host = 'localhost',  #= Host name
+        Str :$port = '10000',      #= Port
+         ) {
 
-    my $user-id = '';
-    my $conf-spec = 'ChatGPT';
     my $openai-api-key-orig = %*ENV<OPENAI_API_KEY> // '';
     my $palm-api-key-orig = %*ENV<PALM_API_KEY> // '';
-    my $prompt = '';
-
-    my $application = route {
-        get -> 'is_ready', {
-            content 'application/json', to-json({ :is-ready });
-        }
-
-        get -> 'setup', Str :$apiKey='', Str :$userID='', Str :$llm = 'ChatGPT' {
-
-            my $response = '';
-
-            # API key setup
-            if $apiKey {
-                given $llm {
-                    when $_.lc ∈ <openai chatgpt> {
-                        %*ENV<OPENAI_API_KEY> = $apiKey
-                    }
-                    when $_.lc ∈ <palm bard> {
-                        %*ENV<PALM_API_KEY> = $apiKey
-                    }
-                    default {
-                        $response = 'Unknown spec for the paramter llm.'
-                    }
-                }
-            }
-
-            if $userID { $user-id = $userID }
-
-            # Response
-            if ! $response {
-                $response = 'Setup is successfull.';
-            }
-
-            content 'application/json', to-json({ 'import' => $response });
-        }
-
-        # DSL translation by grammars
-        get -> 'qas',
-               Str :$text!,
-               Str :$questions!,
-               Str :$llm = 'chatgpt' {
-
-            ## Remove wrapper quotes
-            my $cleanText = uri_decode($text);
-            if $cleanText ~~ / ^ ['"' | '\''] .* ['"' | '\''] $ / {
-                $cleanText = $cleanText.substr(1, *- 1)
-            }
-
-            my $cleanQuestions = uri_decode($questions);
-            if $cleanQuestions ~~ / ^ ['"' | '\''] .* ['"' | '\''] $ / {
-                $cleanQuestions = $cleanQuestions.substr(1, *- 1)
-            }
-
-            # Questions
-            my @questions = $cleanQuestions.split('?', :skip-empty);
-            @questions .= map({ $_.trim ~ '?' });
-            note @questions;
-
-            # Configuration / evaluator
-            #my $llmConf = llm-configuration($conf, prompts => default-prompt);
-
-            # Find answers
-            my $response = find-textual-answer($cleanText, @questions, finder => $llm, :pairs);
-
-            # Result
-            note "Response: ", $response;
-            content 'application/json', to-json($response);
-        }
-    }
 
     # The Cro service
-    my Cro::Service $service = Cro::HTTP::Server.new(:$host, port => $port.Int, :$application);
+    my Cro::Service $service =
+            Cro::HTTP::Server.new(
+                    http => <1.1>,
+                    :$host,
+                    port => $port.Int,
+                    application => routes(),
+                    after => [
+                        Cro::HTTP::Log::File.new(logs => $*OUT, errors => $*ERR)
+                    ]
+                    );
 
     $service.start;
 
@@ -103,8 +40,13 @@ sub MAIN(
         $service.stop;
 
         # Recover
-        %*ENV<OPENAI_API_KEY> = $openai-api-key-orig;
-        %*ENV<PALM_API_KEY> = $palm-api-key-orig;
+        if $openai-api-key-orig {
+            %*ENV<OPENAI_API_KEY> = $openai-api-key-orig;
+        }
+
+        if $palm-api-key-orig {
+            %*ENV<PALM_API_KEY> = $palm-api-key-orig;
+        }
 
         # Exit
         exit;
