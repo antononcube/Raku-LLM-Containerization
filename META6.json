@@ -12,7 +12,8 @@
     "Cro::WebSocket",
     "LLM::Functions",
     "LLM::Prompts",
-    "ML::FindTextualAnswer"
+    "ML::FindTextualAnswer",
+    "URI::Encode"
   ],
   "build-depends": [],
   "test-depends": [
