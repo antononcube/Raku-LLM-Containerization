@@ -1,0 +1,16 @@
+version: "3.9"
+services:
+  raku-service:
+    container_name: raku-llm-service
+    ports:
+      - ${PORT}:${PORT}
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+      args:
+        - PAT_GIT=$PAT_GIT
+    environment:
+      HOST: ${HOST}
+      PORT: ${PORT}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      PALM_API_KEY: ${PALM_API_KEY}
