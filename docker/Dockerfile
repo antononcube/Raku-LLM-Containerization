@@ -8,6 +8,7 @@ USER root
 
 # Install necessary dependencies for Raku dependencies
 RUN apk update &&\
+    apk add build-base &&\
     apk add --update openssl openssl-dev curl git &&\
     rm -rf /var/cache/apk/*
 
