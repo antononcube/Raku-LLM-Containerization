@@ -51,8 +51,11 @@ sub routes() is export {
                     when $_.lc ∈ <openai chatgpt> {
                         %*ENV<OPENAI_API_KEY> = $api_key
                     }
-                    when $_.lc ∈ <palm bard> {
+                    when $_.lc ∈ <palm bard gemini> {
                         %*ENV<PALM_API_KEY> = $api_key
+                    }
+                    when $_.lc ∈ <mistral mistralai> {
+                        %*ENV<MISTRAL_API_KEY> = $api_key
                     }
                     default {
                         $response = 'Unknown spec for the paramter llm.'
