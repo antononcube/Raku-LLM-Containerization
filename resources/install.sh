@@ -30,6 +30,7 @@ zef install WWW::OpenAI --/test
 zef install WWW::PaLM --/test
 zef install WWW::Gemini --/test
 zef install WWW::MistralAI --/test
+zef install WWW::LLaMA --/test
 zef install LLM::Functions --/test
 zef install LLM::Prompts --/test
 zef install ML::FindTextualAnswer --/test
