@@ -14,3 +14,4 @@ services:
       PORT: ${PORT}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       PALM_API_KEY: ${PALM_API_KEY}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY}
