@@ -17,5 +17,5 @@ raku -e "say 1+1_000"
 
 echo "Finished Raku command"
 
-echo "Starting Raku-DSL Web Service at host $HOST and port $PORT."
+echo "Starting Raku-LLM Web Service at host $HOST and port $PORT."
 raku bin/llm-web-service --host="$HOST" --port="$PORT"
