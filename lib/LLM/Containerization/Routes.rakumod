@@ -58,7 +58,7 @@ sub routes() is export {
                         %*ENV<MISTRAL_API_KEY> = $api_key
                     }
                     default {
-                        $response = 'Unknown spec for the paramter llm.'
+                        $response = 'Unknown spec for the parameter llm.'
                     }
                 }
             }
@@ -67,7 +67,7 @@ sub routes() is export {
 
             # Response
             if !$response {
-                $response = 'Setup is successfull.';
+                $response = 'Setup is successful.';
             }
 
             content 'application/json', to-json({ 'import' => $response });
