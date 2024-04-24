@@ -1,7 +1,7 @@
 {
   "name": "LLM::Containerization",
   "description": "Docker containers, Cro Web API, and CLI scripts packaging LLM functionalities.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "perl": "6.d",
   "authors": [
     "Anton Antonov"
