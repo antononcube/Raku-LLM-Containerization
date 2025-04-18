@@ -33,6 +33,7 @@ zef install WWW::MistralAI --/test
 zef install WWW::LLaMA --/test
 zef install LLM::Functions --/test
 zef install LLM::Prompts --/test
+zef install LLM::RetrievalAugmentedGeneration --/test
 zef install ML::FindTextualAnswer --/test
 zef install LLM::Containerization --/test
 
