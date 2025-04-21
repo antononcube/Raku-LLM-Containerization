@@ -155,22 +155,34 @@ sub routes() is export {
         }
 
         # Show vector databases
-        get -> 'vdb_nearest', Str :$query!, UInt :n(:$nns) = 5 {
+        get -> 'vdb_nearest', Str :$query!, UInt :n(:$nns) = 5, Str :d(:$dataset) = 'true' {
             # Using the LLM embedding configuration made during the VDB load
 
             # Get the query vector
             my $vec = llm-embedding($query, e => $vdb-conf).head».Num.Array;
 
-            # note ('vec-elems' => $vec.elems);
-            # note (:$vec);
+            # Often enough I get messages that vectors are not of the same length.
+            # When I put in this print-outs that message disappears.
+            #note "vec.elems = {$vec.elems}";
+            #note (:$vec);
 
-            # Find nearest neighbors
-            my @nns = |$vdb.nearest($vec, $nns).flat(:hammer);
+            if $dataset.lc ∈ <true yes> {
+                # Find nearest neighbors
+                my @nns = |$vdb.nearest($vec, $nns, prop => <label distance>);
 
-            # Make the result
-            my @paragraphs = @nns Z=> $vdb.items{|@nns};
+                # Make the result
+                my @dataset = @nns.map({ %( id => $_.head, distance => $_.tail, item => $vdb.items{$_.head} ) }).Array;
 
-            content 'application/json', to-json(@paragraphs);
+                content 'application/json', to-json(@dataset);
+            } else {
+                # Find nearest neighbors
+                my @nns = |$vdb.nearest($vec, $nns).flat(:hammer);
+
+                # Make the result
+                my @paragraphs = @nns Z=> $vdb.items{|@nns};
+
+                content 'application/json', to-json(@paragraphs);
+            }
         }
 
         # Show vector databases
