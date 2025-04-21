@@ -124,7 +124,7 @@ sub routes() is export {
         }
 
         # Show vector databases
-        get -> 'show_vdb_summary' {
+        get -> 'vdb_summary' {
             my @field-names = <id name item-count dimension version llm-service llm-embedding-model created>;
             vector-database-objects(f=>'hash', :flat)
                     ==> { $_.map({ $_<created> = $_<file>.IO.created.DateTime.Str.subst('T',' ').substr(^19); $_}).sort(*<created>).reverse }()
@@ -135,7 +135,7 @@ sub routes() is export {
         }
 
         # Show vector databases
-        get -> 'load_vdb', Str :$id! {
+        get -> 'vdb_load', Str :$id! {
             # It is good to be able to load multiple vector databases
             my @vdbSummary = vector-database-objects($dir-vdb, f=>'hash', :flat);
             my @vdbs = @vdbSummary.grep({ $_<id> ∈ [$id, ] }).map({ create-vector-database(file => $_<file>) });
@@ -155,7 +155,7 @@ sub routes() is export {
         }
 
         # Show vector databases
-        get -> 'rag_items', Str :$query!, UInt :n(:$nns) = 5 {
+        get -> 'vdb_nearest', Str :$query!, UInt :n(:$nns) = 5 {
             # Using the LLM embedding configuration made during the VDB load
 
             # Get the query vector
@@ -174,7 +174,7 @@ sub routes() is export {
         }
 
         # Show vector databases
-        get -> 'rag', Str :q(:$query)!, Int :n(:$nns) = 5, Str :r(:$request) = "Answer: \$QUERY\nusing the following text:"  {
+        get -> 'rag', Str :q(:$query)!, Int :n(:$nns) = 5, Str :r(:$request) = "Answer:\n\n\t\$QUERY\n\nby using the following text:\n"  {
             # Using the LLM embedding configuration made during the VDB load
             # Get the query vector
             my $vec = llm-embedding($query, e => $vdb-conf).head».Num.Array;
