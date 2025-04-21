@@ -16,7 +16,7 @@ sub routes() is export {
         my $user-id = '';
         my $conf-spec = 'ChatGPT';
         my $max-tokens = 4096;
-        my $temperature = 0.4;
+        my $temperature = 0.5;
         my $prompt = '';
         my $dir-vdb = LLM::RetrievalAugmentedGeneration::default-location();
         my $vdb = Nil;
@@ -44,11 +44,16 @@ sub routes() is export {
 
         # Show setup
         get -> 'show_setup' {
-            content 'application/json', to-json({ :$prompt, :$user-id, :$conf-spec, vdb-id => $vdb.id });
+            content 'application/json', to-json({ :$prompt, :$user-id, :$conf-spec, :$max-tokens, :$temperature, vdb-id => $vdb.id });
         }
 
         # Setup
-        get -> 'setup', Str :$api_key= '', Str :$user_id= '', Str :$llm = 'ChatGPT' {
+        get -> 'setup',
+               Str :$api_key= '',
+               Str :$user_id= '',
+               Str :llm_service(:$llm) = 'ChatGPT',
+               UInt :maxtokens(:$max_tokens) = 4096,
+               Str :temperature(:$temp) = '0.5' {
 
             my $response = '';
 
@@ -78,6 +83,8 @@ sub routes() is export {
             }
 
             $conf-spec = $llm;
+            $max-tokens = $max_tokens;
+            $temperature = $temp.Numeric;
 
             content 'application/json', to-json({ 'import' => $response });
         }
@@ -148,11 +155,14 @@ sub routes() is export {
         }
 
         # Show vector databases
-        get -> 'rag_items', Str :$query!, UInt :$nns = 5 {
+        get -> 'rag_items', Str :$query!, UInt :n(:$nns) = 5 {
             # Using the LLM embedding configuration made during the VDB load
 
             # Get the query vector
             my $vec = llm-embedding($query, e => $vdb-conf).head».Num.Array;
+
+            # note ('vec-elems' => $vec.elems);
+            # note (:$vec);
 
             # Find nearest neighbors
             my @nns = |$vdb.nearest($vec, $nns).flat(:hammer);
@@ -164,12 +174,10 @@ sub routes() is export {
         }
 
         # Show vector databases
-        get -> 'rag', Str :q(:$query)!, Int :n(:$nns) = 5, Str :r(:$request) = "Answer: \$QUERY \n using the following text:"  {
+        get -> 'rag', Str :q(:$query)!, Int :n(:$nns) = 5, Str :r(:$request) = "Answer: \$QUERY\nusing the following text:"  {
             # Using the LLM embedding configuration made during the VDB load
             # Get the query vector
             my $vec = llm-embedding($query, e => $vdb-conf).head».Num.Array;
-
-            note (:$vec);
 
             # Find nearest neighbors
             my @nns = |$vdb.nearest($vec, $nns).flat(:hammer);
