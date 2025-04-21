@@ -6,14 +6,21 @@ use JSON::Fast;
 use URI::Encode;
 
 use LLM::Functions;
+use LLM::RetrievalAugmentedGeneration;
 use ML::FindTextualAnswer;
+use XDG::BaseDirectory :terms;
 
 sub routes() is export {
     route {
 
         my $user-id = '';
         my $conf-spec = 'ChatGPT';
+        my $max-tokens = 4096;
+        my $temperature = 0.4;
         my $prompt = '';
+        my $dir-vdb = LLM::RetrievalAugmentedGeneration::default-location();
+        my $vdb = Nil;
+        my $vdb-conf = Whatever;
 
         # Is ready
         get -> 'is_ready' {
@@ -37,7 +44,7 @@ sub routes() is export {
 
         # Show setup
         get -> 'show_setup' {
-            content 'application/json', to-json({ :$prompt, :$user-id, :$conf-spec });
+            content 'application/json', to-json({ :$prompt, :$user-id, :$conf-spec, vdb-id => $vdb.id });
         }
 
         # Setup
@@ -69,6 +76,8 @@ sub routes() is export {
             if !$response {
                 $response = 'Setup is successful.';
             }
+
+            $conf-spec = $llm;
 
             content 'application/json', to-json({ 'import' => $response });
         }
@@ -105,6 +114,79 @@ sub routes() is export {
             # Result
             note "Response: ", $response;
             content 'application/json', to-json($response);
+        }
+
+        # Show vector databases
+        get -> 'show_vdb_summary' {
+            my @field-names = <id name item-count dimension version llm-service llm-embedding-model created>;
+            vector-database-objects(f=>'hash', :flat)
+                    ==> { $_.map({ $_<created> = $_<file>.IO.created.DateTime.Str.subst('T',' ').substr(^19); $_}).sort(*<created>).reverse }()
+                    ==> { $_.map({ @field-names Z=> $_{@field-names} })».Hash }()
+                    ==> my @summary;
+
+            content 'application/json', to-json(@summary);
+        }
+
+        # Show vector databases
+        get -> 'load_vdb', Str :$id! {
+            # It is good to be able to load multiple vector databases
+            my @vdbSummary = vector-database-objects($dir-vdb, f=>'hash', :flat);
+            my @vdbs = @vdbSummary.grep({ $_<id> ∈ [$id, ] }).map({ create-vector-database(file => $_<file>) });
+
+            if @vdbs.elems == 0 {
+                return content('application/json', to-json({ :!found }));
+            }
+
+            # Merge databases
+            #my $vdbObj2 = vector-database-join(@vdbs)
+            $vdb = @vdbs.head;
+
+            # Make the VDB configuration
+            $vdb-conf = llm-configuration(@vdbSummary.head<llm-service>, embedding-model => @vdbSummary.head<llm-embedding-model>);
+
+            content 'application/json', to-json({ :found });
+        }
+
+        # Show vector databases
+        get -> 'rag_items', Str :$query!, UInt :$nns = 5 {
+            # Using the LLM embedding configuration made during the VDB load
+
+            # Get the query vector
+            my $vec = llm-embedding($query, e => $vdb-conf).head».Num.Array;
+
+            # Find nearest neighbors
+            my @nns = |$vdb.nearest($vec, $nns).flat(:hammer);
+
+            # Make the result
+            my @paragraphs = @nns Z=> $vdb.items{|@nns};
+
+            content 'application/json', to-json(@paragraphs);
+        }
+
+        # Show vector databases
+        get -> 'rag', Str :q(:$query)!, Int :n(:$nns) = 5, Str :r(:$request) = "Answer: \$QUERY \n using the following text:"  {
+            # Using the LLM embedding configuration made during the VDB load
+            # Get the query vector
+            my $vec = llm-embedding($query, e => $vdb-conf).head».Num.Array;
+
+            note (:$vec);
+
+            # Find nearest neighbors
+            my @nns = |$vdb.nearest($vec, $nns).flat(:hammer);
+
+            # Retrieve text chunks
+            my @paragraphs = $vdb.items{|@nns};
+
+            # Using LLM configuration from setup
+            my $conf = llm-configuration($conf-spec, :$max-tokens, :$temperature);
+
+            # Make the result
+            my $res = llm-synthesize([
+                $request.subst('$QUERY', $query, :g),
+                @paragraphs.join(" "),
+            ], e => $conf);
+
+            content 'application/json', to-json($res);
         }
 
         # Name of the service
