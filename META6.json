@@ -13,7 +13,8 @@
         "LLM::Prompts",
         "LLM::RetrievalAugmentedGeneration",
         "ML::FindTextualAnswer",
-        "URI::Encode"
+        "URI::Encode",
+        "XDG::BaseDirectory:ver<0.0.13+>:auth<zef:jonathanstowe>:api<1.0+>"
     ],
     "build-depends": [],
     "test-depends": [
