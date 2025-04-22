@@ -44,7 +44,8 @@ sub routes() is export {
 
         # Show setup
         get -> 'show_setup' {
-            content 'application/json', to-json({ :$prompt, :$user-id, :$conf-spec, :$max-tokens, :$temperature, vdb-id => $vdb.id });
+            my $vdb-id = $vdb ?? $vdb.id !! 'NONE';
+            content 'application/json', to-json({ :$prompt, :$user-id, :$conf-spec, :$max-tokens, :$temperature, :$vdb-id});
         }
 
         # Setup
