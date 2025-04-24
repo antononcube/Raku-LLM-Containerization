@@ -162,6 +162,10 @@ sub routes() is export {
             # Get the query vector
             my $vec = llm-embedding($query, e => $vdb-conf).head».Num.Array;
 
+            if $! {
+                return content('application/json', to-json( {:!success, message => 'Failed to get query embedding vector.'} ));
+            }
+
             # Often enough I get messages that vectors are not of the same length.
             # When I put in this print-outs that message disappears.
             #note "vec.elems = {$vec.elems}";
@@ -190,7 +194,11 @@ sub routes() is export {
         get -> 'rag', Str :q(:$query)!, Int :n(:$nns) = 5, Str :r(:$request) = "Answer:\n\n\t\$QUERY\n\nby using the following text:\n"  {
             # Using the LLM embedding configuration made during the VDB load
             # Get the query vector
-            my $vec = llm-embedding($query, e => $vdb-conf).head».Num.Array;
+            my $vec = try llm-embedding($query, e => $vdb-conf).head».Num.Array;
+
+            if $! {
+               return content('application/json', to-json( {:!success, message => 'Failed to get query embedding vector.'} ));
+            }
 
             # Find nearest neighbors
             my @nns = |$vdb.nearest($vec, $nns).flat(:hammer);
