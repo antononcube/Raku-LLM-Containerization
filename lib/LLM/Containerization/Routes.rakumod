@@ -4,6 +4,7 @@ use Cro::HTTP::Server;
 
 use JSON::Fast;
 use URI::Encode;
+use Log::Async;
 
 use LLM::Functions;
 use LLM::RetrievalAugmentedGeneration;
@@ -15,12 +16,13 @@ sub routes() is export {
 
         my $user-id = '';
         my $conf-spec = 'ChatGPT';
-        my $max-tokens = 4096;
-        my $temperature = 0.5;
         my $prompt = '';
         my $dir-vdb = LLM::RetrievalAugmentedGeneration::default-location();
         my $vdb = Nil;
         my $vdb-conf = Whatever;
+
+        logger.send-to($*ERR);
+        logger.untapped-ok = True;
 
         # Is ready
         get -> 'is_ready' {
@@ -43,24 +45,27 @@ sub routes() is export {
         #        }
 
         # Show setup
-        get -> 'show_setup' {
+        get -> 'setup_show' {
             my $vdb-id = $vdb ?? $vdb.id !! 'NONE';
-            content 'application/json', to-json({ :$prompt, :$user-id, :$conf-spec, :$max-tokens, :$temperature, :$vdb-id});
+            my @fields = <name model temperature max-tokens base-url>;
+            content 'application/json',
+                    to-json({ :$prompt, :$user-id,
+                              conf => (@fields Z=> $conf-spec{|@fields}).Hash,
+                              vdb-conf => (@fields Z=> $vdb-conf{|@fields}).Hash,
+                              :$vdb-id});
         }
 
-        # Setup
-        get -> 'setup',
+        # Setup API keys
+        get -> 'setup_api_key',
                Str :$api_key= '',
                Str :$user_id= '',
-               Str :llm_service(:$llm) = 'ChatGPT',
-               UInt :maxtokens(:$max_tokens) = 4096,
-               Str :temperature(:$temp) = '0.5' {
+               Str :llm_service(:$service) = 'ChatGPT' {
 
             my $response = '';
 
             # API key setup
             if $api_key {
-                given $llm {
+                given $service {
                     when $_.lc ∈ <openai chatgpt> {
                         %*ENV<OPENAI_API_KEY> = $api_key
                     }
@@ -80,16 +85,61 @@ sub routes() is export {
 
             # Response
             if !$response {
-                $response = 'Setup is successful.';
+                $response = 'Setup of API key is successful.';
             }
 
-            $conf-spec = $llm;
-            $max-tokens = $max_tokens;
-            $temperature = $temp.Numeric;
-
-            content 'application/json', to-json({ 'import' => $response });
+            content 'application/json', to-json({ :$response });
         }
 
+        # Setup "main" LLM configuration
+        post -> 'setup_conf' {
+
+            my $response = '';
+
+            request-body -> %json-object {
+                if %json-object<embedding-function>:exists {
+                    if %json-object<embedding-function> ~~ Str:D {
+                        info 'setup_conf :: Do not know how to process :&embedding-function spec, yet.';
+                        %json-object<embedding-function>:delete
+                    }
+                }
+                my $name = %json-object<name> // Whatever;
+                $conf-spec = llm-configuration($name, |%json-object);
+                info "setup_conf :: \$conf-spec => {$conf-spec.Hash.gist}";
+                if $! {
+                    $response = 'Cannot make configuration object.';
+                } else {
+                    $response = 'Configration setup is successful.';
+                }
+            }
+
+            content 'application/json', to-json({ :$response });
+        }
+
+        # Setup VDB configuration
+        post -> 'setup_vdb_conf' {
+
+            my $response = '';
+
+            request-body -> %json-object {
+                if %json-object<embedding-function>:exists {
+                    if %json-object<embedding-function> ~~ Str:D {
+                        info 'setup_vdb_conf :: Do not know how to process :&embedding-function spec, yet.';
+                        %json-object<embedding-function>:delete
+                    }
+                }
+                my $name = %json-object<name> // Whatever;
+                $vdb-conf = llm-configuration($name, |%json-object);
+                info "setup_vdb_conf :: \$conf-spec => {$vdb-conf.Hash.gist}";
+                if $! {
+                    $response = 'Cannot make VDB configuration object.';
+                } else {
+                    $response = 'VDB configration setup is successful.';
+                }
+            }
+
+            content 'application/json', to-json({ :$response });
+        }
 
         # Invoking QAS
         get -> 'qas',
@@ -150,7 +200,9 @@ sub routes() is export {
             $vdb = @vdbs.head;
 
             # Make the VDB configuration
-            $vdb-conf = llm-configuration(@vdbSummary.head<llm-service>, embedding-model => @vdbSummary.head<llm-embedding-model>);
+            if $vdb-conf.isa(Whatever) {
+                $vdb-conf = llm-configuration(@vdbSummary.head<llm-service>, embedding-model => @vdbSummary.head<llm-embedding-model>);
+            }
 
             content 'application/json', to-json({ :found });
         }
@@ -206,14 +258,11 @@ sub routes() is export {
             # Retrieve text chunks
             my @paragraphs = $vdb.items{|@nns};
 
-            # Using LLM configuration from setup
-            my $conf = llm-configuration($conf-spec, :$max-tokens, :$temperature);
-
             # Make the result
             my $res = llm-synthesize([
                 $request.subst('$QUERY', $query, :g),
                 @paragraphs.join(" "),
-            ], e => $conf);
+            ], e => $conf-spec);
 
             content 'application/json', to-json($res);
         }
