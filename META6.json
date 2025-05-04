@@ -9,10 +9,10 @@
     "depends": [
         "Cro::HTTP",
         "Cro::WebSocket",
-        "LLM::Functions",
-        "LLM::Prompts",
-        "LLM::RetrievalAugmentedGeneration",
-        "ML::FindTextualAnswer",
+        "LLM::Functions:ver<0.3.0+>",
+        "LLM::Prompts:ver<0.2.5+>",
+        "LLM::RetrievalAugmentedGeneration:ver<0.0.5+>",
+        "ML::FindTextualAnswer:ver<0.2.7+>",
         "URI::Encode",
         "XDG::BaseDirectory:ver<0.0.13+>:auth<zef:jonathanstowe>:api<1.0+>"
     ],
