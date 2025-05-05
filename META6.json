@@ -14,7 +14,8 @@
         "LLM::RetrievalAugmentedGeneration:ver<0.0.5+>",
         "ML::FindTextualAnswer:ver<0.2.7+>",
         "URI::Encode",
-        "XDG::BaseDirectory:ver<0.0.13+>:auth<zef:jonathanstowe>:api<1.0+>"
+        "XDG::BaseDirectory:ver<0.0.13+>:auth<zef:jonathanstowe>:api<1.0+>",
+        "Log::Async:ver<0.0.10+>"
     ],
     "build-depends": [],
     "test-depends": [
